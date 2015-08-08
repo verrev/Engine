@@ -1,0 +1,33 @@
+﻿Build started 2.08.2015 1:09:10.
+     1>Project "C:\projects\BACKUP_00\0\0.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /I"C:\Program Files (x86)\Visual Leak Detector\include" /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _WINDOWS /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt Renderable.cpp ResourceParser.cpp Scene.cpp Sky.cpp main.cpp
+         main.cpp
+         Sky.cpp
+         Scene.cpp
+     1>c:\projects\backup_00\0\scene.cpp(35): warning C4316: 'FirstPersonCamera': object allocated on the heap may not be aligned 16
+     1>c:\projects\backup_00\0\scene.cpp(52): warning C4305: 'argument': truncation from 'double' to 'float'
+     1>c:\projects\backup_00\0\scene.cpp(60): warning C4305: 'argument': truncation from 'double' to 'float'
+     1>c:\projects\backup_00\0\scene.cpp(61): warning C4305: 'argument': truncation from 'double' to 'float'
+     1>c:\projects\backup_00\0\scene.cpp(69): warning C4305: 'argument': truncation from 'double' to 'float'
+         ResourceParser.cpp
+         Renderable.cpp
+         Generating Code...
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\projects\BACKUP_00\0\Debug\0.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files (x86)\Visual Leak Detector\lib\Win32" kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"C:\projects\BACKUP_00\0\Debug\0.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\projects\BACKUP_00\0\Debug\0.lib" /MACHINE:X86 Debug\DirectX11Core.obj
+         Debug\Fileutils.obj
+         Debug\FirstPersonCamera.obj
+         Debug\Input.obj
+         Debug\main.obj
+         Debug\Model.obj
+         Debug\Renderable.obj
+         Debug\ResourceParser.obj
+         Debug\Scene.obj
+         Debug\Sky.obj
+         Debug\Timer.obj
+         0.vcxproj -> C:\projects\BACKUP_00\0\Debug\0.exe
+     1>Done Building Project "C:\projects\BACKUP_00\0\0.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:06.83

@@ -1,0 +1,303 @@
+#pragma once
+#include <Windows.h>
+#include <d3d11.h>
+#include <DirectXMath.h>
+using namespace DirectX;
+#pragma comment (lib,"d3d11.lib")
+
+#define LOG(x) MessageBox(0, TEXT(x), L"Error", MB_OK);
+
+template<typename T>
+void safeRelease(T obj)
+{
+	if (obj) obj->Release();
+	obj = 0;
+}
+
+//--------------------
+IDXGISwapChain *swapChain = nullptr;
+ID3D11Device *device = nullptr;
+ID3D11DeviceContext *deviceContext = nullptr;
+ID3D11Texture2D *swapChainBuffer = nullptr;
+ID3D11Debug *debugger = nullptr;
+ID3D11RenderTargetView *view = nullptr;
+ID3D11Texture2D *depthStencilBuffer = nullptr;
+ID3D11DepthStencilView *depthStencilView = nullptr;
+//--------------------
+ID3D11Buffer *createVertexBuffer(UINT size, bool dynamic, bool streamOut, void *data)
+{
+	D3D11_BUFFER_DESC desc = { 0 };
+	desc.ByteWidth = size;
+	desc.MiscFlags = 0;
+	desc.StructureByteStride = 0;
+	desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+	if (streamOut)
+		desc.BindFlags |= D3D11_BIND_STREAM_OUTPUT;
+
+	if (dynamic) {
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	}
+	else {
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.CPUAccessFlags = 0;
+	}
+	D3D11_SUBRESOURCE_DATA srd;
+	srd.pSysMem = data;
+	ID3D11Buffer *buffer = nullptr;
+	HRESULT hr = device->CreateBuffer(&desc, &srd, &buffer);
+	if (FAILED(hr)) {
+		LOG("createVertexBuffer");
+		return nullptr;
+	}
+	return buffer;
+}
+ID3D11Buffer *createIndexBuffer(UINT size, bool dynamic, void *data)
+{
+	D3D11_BUFFER_DESC desc = { 0 };
+	desc.ByteWidth = size;
+	desc.MiscFlags = 0;
+	desc.StructureByteStride = 0;
+	desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+
+	if (dynamic) {
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	}
+	else {
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.CPUAccessFlags = 0;
+	}
+	D3D11_SUBRESOURCE_DATA srd;
+	srd.pSysMem = data;
+	ID3D11Buffer *buffer = nullptr;
+	HRESULT hr = device->CreateBuffer(&desc, &srd, &buffer);
+	if (FAILED(hr)) {
+		LOG("createIndexBuffer");
+		return nullptr;
+	}
+	return buffer;
+}
+ID3D11Buffer *createConstantBuffer(UINT size, bool dynamic, bool updateByCPU, D3D11_SUBRESOURCE_DATA *data)
+{
+	if (size % 16) {
+		LOG("createConstantBuffer - buffer size is not a multiple of 16");
+		return nullptr;
+	}
+
+	D3D11_BUFFER_DESC desc = { 0 };
+	desc.ByteWidth = size;
+	desc.MiscFlags = 0;
+	desc.StructureByteStride = 0;
+	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+
+	if (dynamic && updateByCPU) {
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	}
+	else if (dynamic && !updateByCPU) {
+		desc.Usage = D3D11_USAGE_DEFAULT;
+		desc.CPUAccessFlags = 0;
+	}
+	else {
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.CPUAccessFlags = 0;
+	}
+
+	ID3D11Buffer *buffer = nullptr;
+	HRESULT hr = device->CreateBuffer(&desc, data, &buffer);
+	if (FAILED(hr)) {
+		LOG("createConstantBuffer");
+		return nullptr;
+	}
+	return buffer;
+}
+ID3D11Buffer *createStructuredBuffer(UINT count, UINT structSize, bool writeByCPU, bool writeByGPU, D3D11_SUBRESOURCE_DATA *data)
+{
+	D3D11_BUFFER_DESC desc = { 0 };
+	desc.ByteWidth = count * structSize;
+	desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	desc.StructureByteStride = structSize;
+
+	if (!writeByCPU && !writeByGPU) {
+		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.CPUAccessFlags = 0;
+	}
+	else if (writeByCPU && !writeByGPU) {
+		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		desc.Usage = D3D11_USAGE_DYNAMIC;
+		desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	}
+	else if (!writeByCPU && writeByGPU) {
+		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+		desc.Usage = D3D11_USAGE_DEFAULT;
+		desc.CPUAccessFlags = 0;
+	}
+	else {
+		LOG("createStructuredBuffer - writeByCPU and writeByGPU cannot be true at the same time");;
+		return nullptr;
+	}
+
+	ID3D11Buffer *buffer = nullptr;
+	HRESULT hr = device->CreateBuffer(&desc, data, &buffer);
+	if (FAILED(hr)) {
+		LOG("createStructuredBuffer");
+		return nullptr;
+	}
+	return buffer;
+}
+ID3D11ShaderResourceView *createBufferSRV(ID3D11Resource *resource)
+{
+	D3D11_SHADER_RESOURCE_VIEW_DESC desc;
+	desc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	desc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+	desc.Buffer.ElementOffset = 0;
+	desc.Buffer.ElementWidth = 100;
+	ID3D11ShaderResourceView *srv = nullptr;
+	HRESULT hr = device->CreateShaderResourceView(resource, &desc, &srv);
+	if (FAILED(hr)) {
+		LOG("createBufferSRV");
+		return nullptr;
+	}
+	return srv;
+}
+ID3D11UnorderedAccessView *createBufferUAV(ID3D11Resource *resource)
+{
+	D3D11_UNORDERED_ACCESS_VIEW_DESC desc;
+	desc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	desc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+	desc.Buffer.FirstElement = 0;
+	desc.Buffer.NumElements = 100;
+	desc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_COUNTER;
+
+	ID3D11UnorderedAccessView *uav = nullptr;
+	HRESULT hr = device->CreateUnorderedAccessView(resource, &desc, &uav);
+	if (FAILED(hr)) {
+		LOG("createBufferUAV");
+		return nullptr;
+	}
+	return uav;
+}
+ID3D11Buffer *createAppendConsumeBuffer(UINT size, UINT structSize, D3D11_SUBRESOURCE_DATA *data)
+{
+	D3D11_BUFFER_DESC desc = { 0 };
+	desc.ByteWidth = size * structSize;
+	desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	desc.StructureByteStride = structSize;
+
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.CPUAccessFlags = 0;
+
+	ID3D11Buffer *buffer = nullptr;
+	HRESULT hr = device->CreateBuffer(&desc, data, &buffer);
+	if (FAILED(hr)) {
+		LOG("createAppendConsumeBuffer");
+		return nullptr;
+	}
+	return buffer;
+}
+ID3D11Buffer *createRawBuffer(UINT size, bool writeByGPU, D3D11_SUBRESOURCE_DATA *data)
+{
+	D3D11_BUFFER_DESC desc = { 0 };
+	desc.ByteWidth = size;
+	desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+	desc.StructureByteStride = 0;
+
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.CPUAccessFlags = 0;
+
+	ID3D11Buffer *buffer = nullptr;
+	HRESULT hr = device->CreateBuffer(&desc, data, &buffer);
+	if (FAILED(hr)) {
+		LOG("createRawBuffer");
+		return nullptr;
+	}
+	return buffer;
+}
+void initDX11(UINT windowWidth, UINT windowHeight, HWND &window, bool windowed)
+{
+	D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_1,D3D_FEATURE_LEVEL_11_0 };
+
+	DXGI_SWAP_CHAIN_DESC scd = { 0 };
+	scd.BufferDesc.Width = windowWidth;
+	scd.BufferDesc.Height = windowHeight;
+	scd.BufferDesc.RefreshRate.Numerator = 60;
+	scd.BufferDesc.RefreshRate.Denominator = 1;
+	scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	scd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	scd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+
+	scd.SampleDesc.Count = 1;
+	scd.SampleDesc.Quality = 0;
+	
+	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+
+	scd.BufferCount = 1;
+	scd.OutputWindow = window;
+	scd.Windowed = windowed;
+	scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	scd.Flags;
+
+	HRESULT hr = D3D11CreateDeviceAndSwapChain(0, D3D_DRIVER_TYPE_HARDWARE, 0, D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_DEBUG, featureLevels, 2, D3D11_SDK_VERSION, &scd, &swapChain, &device, 0, &deviceContext);
+	if (FAILED(hr)) {
+		LOG("D3D11CreateDeviceAndSwapChain");
+		return;
+	}
+
+	hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&swapChainBuffer);
+	if (FAILED(hr)) {
+		LOG("GetBuffer");
+		return;
+	}
+
+	hr = device->QueryInterface(__uuidof(ID3D11Debug), (void**)&debugger);
+	if (FAILED(hr)) {
+		LOG("QueryInterface");
+		return;
+	}
+
+	hr = device->CreateRenderTargetView(swapChainBuffer, 0, &view);
+	if (FAILED(hr)) {
+		LOG("CreateRenderTargetView");
+		return;
+	}
+
+	D3D11_TEXTURE2D_DESC dsdDesc;
+	dsdDesc.Width = windowWidth;
+	dsdDesc.Height = windowHeight;
+	dsdDesc.MipLevels = 1;
+	dsdDesc.ArraySize = 1;
+	dsdDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsdDesc.SampleDesc.Count = 1;
+	dsdDesc.SampleDesc.Quality = 0;
+	dsdDesc.Usage = D3D11_USAGE_DEFAULT;
+	dsdDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	dsdDesc.CPUAccessFlags = 0;
+	dsdDesc.MiscFlags = 0;
+
+	/* MSAA check
+	UINT quality;
+	hr = device->CheckMultisampleQualityLevels(DXGI_FORMAT_D32_FLOAT, 1, &quality);
+	if (FAILED(hr)) {
+	LOG("DXGI_FORMAT_D32_FLOAT MSAA 1");
+	return;
+	}
+	quality -= 1;
+	*/
+
+	hr = device->CreateTexture2D(&dsdDesc, 0, &depthStencilBuffer);
+	if (FAILED(hr)) {
+		LOG("CreateTexture2D");
+		return;
+	}
+
+	hr = device->CreateDepthStencilView(depthStencilBuffer, 0, &depthStencilView);
+	if (FAILED(hr)) {
+		LOG("CreateDepthStencilView");
+		return;
+	}
+}
